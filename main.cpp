@@ -10,6 +10,7 @@
 #define G_HUE 0.7152
 #define B_HUE 0.0722
 #define DEFAULT_THRESHOLD 200
+#define DEFAULT_ASCII_SIZE 100
 #define MAX_ASCII_SIZE 500
 
 extern "C" {
@@ -80,7 +81,7 @@ std::string get_char(const bool* pixels)
 
 int main(int argc, char** argv)
 {
-  int ascii_s = -1, width, height, threshold = DEFAULT_THRESHOLD;
+  int ascii_s = DEFAULT_ASCII_SIZE, width, height, threshold = DEFAULT_THRESHOLD;
   bool success, invert = false;
   std::string img_path = "";
   std::vector<uint8_t> img_data;
@@ -90,6 +91,24 @@ int main(int argc, char** argv)
     if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--invert")
     {
       invert = true;
+    }
+    else if (std::string(argv[i]) == "-s" || std::string(argv[i]) == "--size")
+    {
+      if (i + 1 >= argc)
+      {
+        std::cerr << "Input error: You must input an ASCII size" << std::endl;
+        return 1;
+      }
+
+      try
+      {
+        ascii_s = std::stoi(argv[i + 1]);
+      }
+      catch (const std::invalid_argument& e)
+      {
+        std::cerr << "Input error: Invalid ASCII size" << std::endl;
+        return 1;
+      }
     }
     else if (std::string(argv[i]) == "-t" || std::string(argv[i]) == "--threshold")
     {
@@ -111,10 +130,11 @@ int main(int argc, char** argv)
     }
     else if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help")
     {
-      std::cout << "Usage: " << argv[0] << " <image> <ascii_size> [options]" << std::endl;
+      std::cout << "Usage: " << argv[0] << " <image> [options]" << std::endl;
       std::cout << "Options:" << std::endl;
+      std::cout << "  -s, --size       Set the size of the ASCII image (default is " << DEFAULT_ASCII_SIZE << ")" << std::endl;
       std::cout << "  -i, --invert     Invert the image" << std::endl;
-      std::cout << "  -t, --threshold  Set the threshold for the image" << std::endl;
+      std::cout << "  -t, --threshold  Set the threshold for the image between 0 and 255 (default is " << DEFAULT_THRESHOLD << ")" << std::endl;
       std::cout << "  -h, --help       Display this information" << std::endl;
       return 0;
     }
@@ -142,15 +162,15 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  if (ascii_s == -1)
-  {
-    std::cerr << "Input error: You must input an ASCII size" << std::endl;
-    return 1;
-  }
-
   if (ascii_s < 1 || ascii_s > MAX_ASCII_SIZE || ascii_s % 4 != 0)
   {
     std::cerr << "Input error: The ASCII size should be between 4 and 500 and should be a multiple of 4" << std::endl;
+    return 1;
+  }
+
+  if (threshold < 0 || threshold > 255)
+  {
+    std::cerr << "Input error: The threshold should be between 0 and 255" << std::endl;
     return 1;
   }
 
