@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #define BRAILLE_U 0x2800
 #define RGBA 4
@@ -83,7 +84,7 @@ int main(int argc, char** argv)
 {
   int ascii_s = DEFAULT_ASCII_SIZE, width, height, threshold = DEFAULT_THRESHOLD;
   bool success, invert = false;
-  std::string img_path = "";
+  std::string img_path = "", output_path = "", result = "";
   std::vector<uint8_t> img_data;
 
   for (int i = 1; i < argc; i++)
@@ -102,7 +103,7 @@ int main(int argc, char** argv)
 
       try
       {
-        ascii_s = std::stoi(argv[i + 1]);
+        ascii_s = std::stoi(argv[++i]);
       }
       catch (const std::invalid_argument& e)
       {
@@ -120,13 +121,23 @@ int main(int argc, char** argv)
 
       try
       {
-        threshold = std::stoi(argv[i + 1]);
+        threshold = std::stoi(argv[++i]);
       }
       catch (const std::invalid_argument& e)
       {
         std::cerr << "Input error: Invalid threshold value" << std::endl;
         return 1;
       }
+    }
+    else if (std::string(argv[i]) == "-o" || std::string(argv[i]) == "--output")
+    {
+      if (i + 1 >= argc)
+      {
+        std::cerr << "Input error: You must input an output path" << std::endl;
+        return 1;
+      }
+
+      output_path = argv[++i];
     }
     else if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help")
     {
@@ -136,6 +147,7 @@ int main(int argc, char** argv)
       std::cout << "  -i, --invert     Invert the image" << std::endl;
       std::cout << "  -t, --threshold  Set the threshold for the image between 0 and 255 (default is " << DEFAULT_THRESHOLD << ")" << std::endl;
       std::cout << "  -h, --help       Display this information" << std::endl;
+      std::cout << "  -o, --output     Set the output path for the ASCII image" << std::endl;
       return 0;
     }
     else if (img_path.size() == 0)
@@ -182,14 +194,14 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  bool image[ascii_s * 2][ascii_s * 4];
+  bool image[ascii_s][ascii_s];
 
-  for (int y = 0; y < ascii_s * 2; y++)
+  for (int y = 0; y < ascii_s; y++)
   {
-    for (int x = 0; x < ascii_s * 4; x++)
+    for (int x = 0; x < ascii_s; x++)
     {
-      int img_x = x * width / (ascii_s * 4);
-      int img_y = y * height / (ascii_s * 2);
+      int img_x = x * width / ascii_s;
+      int img_y = y * height / ascii_s;
 
       bool visible = is_pixel_visible(img_data, img_x, img_y, width);
       uint8_t brightness = get_pixel_brightness(img_data, img_x, img_y, width);
@@ -198,24 +210,47 @@ int main(int argc, char** argv)
     }
   }
 
-  for (int y = 0; y < ascii_s; y++)
+  for (int y = 0; y < ascii_s; y += 4)
   {
-    for (int x = 0; x < ascii_s; x++)
+    if (y > 0)
+    {
+      result += "\n";
+    }
+
+    for (int x = 0; x < ascii_s; x += 2)
     {
       bool pixels[8];
 
-      for (int py = 0; py < 2; py++)
+      for (int py = 0; py < 4; py++)
       {
-        for (int px = 0; px < 4; px++)
+        for (int px = 0; px < 2; px++)
         {
-          pixels[py * 4 + px] = image[y * 2 + py][x * 4 + px];
+          pixels[py * 2 + px] = image[y + py][x + px];
         }
       }
 
-      std::cout << get_char(pixels);
+      result += get_char(pixels);
     }
+  }
 
-    std::cout << std::endl;
+  if (output_path.size() > 0)
+  {
+    std::ofstream file(output_path);
+
+    if (file.is_open())
+    {
+      file << result;
+      file.close();
+    }
+    else
+    {
+      std::cerr << "Output error: Error writing to file" << std::endl;
+      return 1;
+    }
+  }
+  else
+  {
+    std::cout << result << std::endl;
   }
 
   return 0;
