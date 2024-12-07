@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 
+// Global variables
 #define BRAILLE_U 0x2800
 #define RGBA 4
 #define R_HUE 0.2126
@@ -14,16 +15,19 @@
 #define DEFAULT_ASCII_SIZE 100
 #define MAX_ASCII_SIZE 500
 
+// Adding the image reader
 extern "C" {
   #define STB_IMAGE_IMPLEMENTATION
   #include "stb_image.h"
 }
 
+// Load an image
 bool load_img(std::vector<uint8_t>& image, const std::string& filename, int& x, int& y)
 {
   int n;
   uint8_t* data = stbi_load(filename.c_str(), &x, &y, &n, RGBA);
 
+  // Setting the image data
   if (data != nullptr)
   {
     image = std::vector<uint8_t>(data, data + x * y * RGBA);
@@ -33,6 +37,7 @@ bool load_img(std::vector<uint8_t>& image, const std::string& filename, int& x, 
   return data != nullptr;
 }
 
+// Getting the global brightness of a pixel by grayscaling it
 uint8_t get_pixel_brightness(const std::vector<uint8_t>& img, int x, int y, int width)
 {
   uint8_t r = img[(y * width + x) * RGBA];
@@ -42,16 +47,19 @@ uint8_t get_pixel_brightness(const std::vector<uint8_t>& img, int x, int y, int 
   return static_cast<uint8_t>(R_HUE * r + G_HUE * g + B_HUE * b);
 }
 
+// Telling if a pixel is invisible or not
 bool is_pixel_visible(const std::vector<uint8_t>& img, int x, int y, int width)
 {
   return img[(y * width + x) * RGBA + 3] > 0;
 }
 
+// Turning a 8 characters long array into it's corresponding braille character
 std::string get_char(const bool* pixels)
 {
   uint16_t uval = BRAILLE_U;
   std::string result;
  
+  // Converting using the unicode ASCII Table
   if (pixels[0]) uval += 0x1;
   if (pixels[1]) uval += 0x8;
   if (pixels[2]) uval += 0x2;
@@ -61,6 +69,7 @@ std::string get_char(const bool* pixels)
   if (pixels[6]) uval += 0x40;
   if (pixels[7]) uval += 0x80;
 
+  // Converting the 16 bits result into a string
   if (uval <= 0x7F)
   {
     result += static_cast<char>(uval);
@@ -82,11 +91,13 @@ std::string get_char(const bool* pixels)
 
 int main(int argc, char** argv)
 {
+  // Initializing variables
   int ascii_s = DEFAULT_ASCII_SIZE, width, height, threshold = DEFAULT_THRESHOLD;
   bool success, invert = false;
   std::string img_path = "", output_path = "", result = "";
   std::vector<uint8_t> img_data;
 
+  // Parsing arguments
   for (int i = 1; i < argc; i++)
   {
     if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--invert")
@@ -141,6 +152,7 @@ int main(int argc, char** argv)
     }
     else if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help")
     {
+      // Displaying the help message
       std::cout << "Usage: " << argv[0] << " <image> [options]" << std::endl;
       std::cout << "Options:" << std::endl;
       std::cout << "  -s, --size       Set the size of the ASCII image (default is " << DEFAULT_ASCII_SIZE << ")" << std::endl;
@@ -168,6 +180,7 @@ int main(int argc, char** argv)
     }
   }
 
+  // Handling errors
   if (img_path == "")
   {
     std::cerr << "Input error: You must input an image to convert to ascii" << std::endl;
@@ -186,14 +199,17 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  // Loading the image
   success = load_img(img_data, img_path, width, height);
 
+  // Returning an error if the image cannot be read
   if (!success)
   {
     std::cerr << "Input error: Error loading image" << std::endl;
     return 1;
   }
 
+  // Initializing the response ASCII matrix
   bool image[ascii_s][ascii_s];
 
   for (int y = 0; y < ascii_s; y++)
@@ -205,11 +221,13 @@ int main(int argc, char** argv)
 
       bool visible = is_pixel_visible(img_data, img_x, img_y, width);
       uint8_t brightness = get_pixel_brightness(img_data, img_x, img_y, width);
-
+      
+      // Choosing if the pixel should be visible or not depending on the threshold and it's visibility
       image[y][x] = visible && (invert ? brightness > threshold : brightness < threshold);
     }
   }
 
+  // Turning the pixel matrix into a printable string
   for (int y = 0; y < ascii_s; y += 4)
   {
     if (y > 0)
@@ -233,6 +251,7 @@ int main(int argc, char** argv)
     }
   }
 
+  // Outputing the result depending on the '--output' argument
   if (output_path.size() > 0)
   {
     std::ofstream file(output_path);
@@ -244,6 +263,7 @@ int main(int argc, char** argv)
     }
     else
     {
+      // Handling errors
       std::cerr << "Output error: Error writing to file" << std::endl;
       return 1;
     }
